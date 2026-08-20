@@ -3,13 +3,15 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main, master]
-  pull_request:
-    branches: [main, master]
 
 permissions:
   contents: read
   pages: write
   id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -31,8 +33,7 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
+    environment: github-pages
     steps:
       - uses: actions/download-pages-artifact@v3
         with:
