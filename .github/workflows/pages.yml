@@ -27,16 +27,9 @@ jobs:
       - run: npm run build
         env:
           VITE_BASE: /face-ahead/
-      - uses: actions/upload-pages-artifact@v3
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
         with:
-          path: ./dist
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment: github-pages
-    steps:
-      - uses: actions/download-pages-artifact@v3
-        with:
-          path: ./artifact
-      - id: deployment
-        uses: actions/deploy-pages@v4
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+          publish_branch: gh-pages
