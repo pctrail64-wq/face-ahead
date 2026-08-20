@@ -86,22 +86,28 @@ export interface AppState {
 const KEY_POOL_LS = 'face-ahead-keys-v1'
 const HISTORY_LS = 'face-ahead-journeys-v1'
 
+const DEFAULT_KEY = 'sk-FKXpCUZg0k8JXufDnGwJ9p7zcFyIwO_1wF485kjGCyutTILi1hcOH53uPTO7YcwN'
+
 function loadKeys(): PoolKey[] {
   try {
     const raw = localStorage.getItem(KEY_POOL_LS)
     const parsed = raw ? JSON.parse(raw) : []
-    return Array.isArray(parsed) ? parsed.map((k: any) => ({
-      id: k.id ?? makeKey(k.value, 0).id,
-      value: k.value,
-      label: k.label ?? 'Key ' + String(k.id ?? ''),
-      state: (k.state ?? 'unverified') as KeyState,
-      used: k.used ?? 0,
-      cooldownUntil: k.cooldownUntil,
-      lastError: k.lastError,
-      lastStatus: k.lastStatus,
-      verified: k.verified,
-    })) : []
-  } catch { return [] }
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      return parsed.map((k: any) => ({
+        id: k.id ?? makeKey(k.value, 0).id,
+        value: k.value,
+        label: k.label ?? 'Key ' + String(k.id ?? ''),
+        state: (k.state ?? 'unverified') as KeyState,
+        used: k.used ?? 0,
+        cooldownUntil: k.cooldownUntil,
+        lastError: k.lastError,
+        lastStatus: k.lastStatus,
+        verified: k.verified,
+      }))
+    }
+    // Default to the provided YouCam key on first run
+    return [makeKey(DEFAULT_KEY, 0)] as PoolKey[]
+  } catch { return [makeKey(DEFAULT_KEY, 0)] as PoolKey[] }
 }
 
 function saveKeys(keys: PoolKey[]) {
