@@ -13,7 +13,9 @@ export default function App() {
   const { journey, ui } = useStore()
 
   useEffect(() => {
-    document.documentElement.classList.toggle('dark', ui.dark)
+    const root = document.documentElement
+    root.classList.toggle('dark', ui.dark)
+    root.setAttribute('data-theme', ui.dark ? 'dark' : 'light')
   }, [ui.dark])
 
   return (

@@ -17,7 +17,7 @@ export function Settings() {
   const navigate = useNavigate()
   const {
     keys, addKey, removeKey, resetKey, updateKeyLabel, setDark,
-    remainingUnits, totalUnits,
+    remainingUnits, totalUnits, ui,
   } = useStore()
 
   const [newKey, setNewKey] = useState('')
@@ -120,13 +120,15 @@ export function Settings() {
         <section className="mb-8">
           <h3 className="text-lg font-semibold mb-4">Appearance</h3>
           <Card className="p-4">
-            <label className="flex items-center gap-2">
+            <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
-                checked={typeof window !== 'undefined' && document.documentElement.classList.contains('dark')}
+                checked={ui.dark}
                 onChange={(e) => {
-                  document.documentElement.classList.toggle('dark', e.target.checked)
-                  setDark(e.target.checked)
+                  const dark = e.target.checked
+                  document.documentElement.classList.toggle('dark', dark)
+                  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light')
+                  setDark(dark)
                 }}
               />
               <span>Dark mode</span>
