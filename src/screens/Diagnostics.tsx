@@ -5,14 +5,14 @@ import { Button, Badge, Card, cx } from '../components/ui'
 import { diagnosticsBus, type RawEvent } from '../lib/diagnostics'
 
 const STATUS_COLOR: Record<number, string> = {
-  200: 'text-green-400',
-  201: 'text-green-400',
-  400: 'text-amber-400',
-  401: 'text-red-400',
-  403: 'text-red-400',
-  404: 'text-red-400',
-  429: 'text-yellow-400',
-  500: 'text-red-400',
+  200: 'text-green-600',
+  201: 'text-green-600',
+  400: 'text-amber-600',
+  401: 'text-red-600',
+  403: 'text-red-600',
+  404: 'text-red-600',
+  429: 'text-yellow-600',
+  500: 'text-red-600',
 }
 
 export function Diagnostics() {
@@ -34,10 +34,10 @@ export function Diagnostics() {
   })
 
   return (
-    <div className="min-h-screen bg-ink text-ink">
+    <div className="min-h-screen bg-paper text-ink">
       <header className="border-b border-line/30">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <Link to="/"><h1 className="text-xl font-bold">FACE <span className="text-brand">AHEAD</span></h1></Link>
+          <Link to="/"><h1 className="text-3xl tracking-wide">FACE <span className="text-brand">AHEAD</span></h1></Link>
           <nav className="flex gap-2">
             <Link to="/settings" className="text-sm text-muted hover:text-ink">Settings</Link>
           </nav>

@@ -10,13 +10,14 @@ import { Diagnostics } from './screens/Diagnostics'
 import { MaskEditor } from './screens/MaskEditor'
 
 export default function App() {
-  const { journey, ui } = useStore()
+  const { journey } = useStore()
 
+  // Day mode only — the app is light-themed with no dark toggle.
   useEffect(() => {
     const root = document.documentElement
-    root.classList.toggle('dark', ui.dark)
-    root.setAttribute('data-theme', ui.dark ? 'dark' : 'light')
-  }, [ui.dark])
+    root.classList.remove('dark')
+    root.setAttribute('data-theme', 'light')
+  }, [])
 
   return (
     <Routes>

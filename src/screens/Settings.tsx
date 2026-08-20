@@ -16,8 +16,8 @@ const STATE_LABEL: Record<KeyState, string> = {
 export function Settings() {
   const navigate = useNavigate()
   const {
-    keys, addKey, removeKey, resetKey, updateKeyLabel, setDark,
-    remainingUnits, totalUnits, ui,
+    keys, addKey, removeKey, resetKey, updateKeyLabel,
+    remainingUnits, totalUnits,
   } = useStore()
 
   const [newKey, setNewKey] = useState('')
@@ -50,10 +50,10 @@ export function Settings() {
   }
 
   return (
-    <div className="min-h-screen bg-ink text-ink">
+    <div className="min-h-screen bg-paper text-ink">
       <header className="border-b border-line/30">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <Link to="/"><h1 className="text-xl font-bold">FACE <span className="text-brand">AHEAD</span></h1></Link>
+          <Link to="/"><h1 className="text-3xl tracking-wide">FACE <span className="text-brand">AHEAD</span></h1></Link>
           <nav className="flex gap-2">
             <Link to="/diagnostics" className="text-sm text-muted hover:text-ink">Diagnostics</Link>
           </nav>
@@ -114,25 +114,6 @@ export function Settings() {
                 ))}
               </div>
             )}
-          </Card>
-        </section>
-
-        <section className="mb-8">
-          <h3 className="text-lg font-semibold mb-4">Appearance</h3>
-          <Card className="p-4">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={ui.dark}
-                onChange={(e) => {
-                  const dark = e.target.checked
-                  document.documentElement.classList.toggle('dark', dark)
-                  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light')
-                  setDark(dark)
-                }}
-              />
-              <span>Dark mode</span>
-            </label>
           </Card>
         </section>
 

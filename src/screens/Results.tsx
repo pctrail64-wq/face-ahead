@@ -23,10 +23,10 @@ export function Results() {
   if (!today && !future && !results) return null
 
   return (
-    <div className="min-h-screen bg-ink text-ink">
+    <div className="min-h-screen bg-paper text-ink">
       <header className="border-b border-line/30">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <Link to="/"><h1 className="text-xl font-bold">FACE <span className="text-brand">AHEAD</span></h1></Link>
+          <Link to="/"><h1 className="text-3xl tracking-wide">FACE <span className="text-brand">AHEAD</span></h1></Link>
           <nav className="flex gap-2">
             <Link to="/history" className="text-sm text-muted hover:text-ink">History</Link>
             <Button variant="ghost" size="sm" onClick={() => navigate('/run')}>New scan</Button>

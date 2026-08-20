@@ -11,10 +11,10 @@ export const cx = (...classes: (string | undefined | false)[]) =>
 export function Button({ className, variant = 'primary', size = 'md', disabled, children, onClick, type = 'button', ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'ghost' | 'danger'; size?: 'sm' | 'md' | 'lg' }) {
   const base = 'inline-flex items-center justify-center rounded-[6px] font-medium transition-all focus:outline-none focus:ring-2 focus:ring-brand/40 disabled:opacity-50 disabled:cursor-not-allowed'
   const variants = {
-    primary: 'bg-brand hover:bg-brand/90 text-ink',
+    primary: 'bg-brand hover:bg-brand/90 text-white',
     secondary: 'bg-panel hover:bg-panel/80 text-ink border border-line',
     ghost: 'bg-transparent hover:bg-line/20 text-muted',
-    danger: 'bg-bad hover:bg-bad/90 text-ink',
+    danger: 'bg-bad hover:bg-bad/90 text-white',
   }
   const sizes = { sm: 'px-3 py-1.5 text-sm', md: 'px-4 py-2 text-sm', lg: 'px-6 py-3 text-base' }
   return (
@@ -83,7 +83,7 @@ export function Badge({ children, color = 'default', size = 'sm' }: { children: 
     muted: 'bg-line/10 text-muted',
   }
   const sizes = { sm: 'px-2 py-0.5 text-xs', md: 'px-3 py-1 text-sm' }
-  return <span className={'inline-flex items-center rounded-full font-medium ' + colors[color] + ' ' + sizes[size]}>{children}</span>
+  return <span className={'inline-flex items-center rounded-full font-mono ' + colors[color] + ' ' + sizes[size]}>{children}</span>
 }
 
 export function Spinner({ size = 'md', className }: { size?: 'sm' | 'md' | 'lg'; className?: string }) {
@@ -104,7 +104,7 @@ export function Modal({ children, onClose, title, className }: { children: React
   }, [onClose])
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 backdrop-blur-sm" onClick={onClose}>
-      <div className={cx('max-w-lg w-full rounded-[8px] bg-ink text-ink p-6 shadow-glow', className)} onClick={(e) => e.stopPropagation()}>
+      <div className={cx('max-w-lg w-full rounded-[8px] bg-panel text-ink p-6 shadow-glow', className)} onClick={(e) => e.stopPropagation()}>
         {title && <h2 className="text-lg font-semibold mb-4">{title}</h2>}
         {children}
       </div>

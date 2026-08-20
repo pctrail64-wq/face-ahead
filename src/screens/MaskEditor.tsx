@@ -102,10 +102,10 @@ export function MaskEditor() {
   }
 
   return (
-    <div className="min-h-screen bg-ink text-ink">
+    <div className="min-h-screen bg-paper text-ink">
       <header className="border-b border-line/30">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <Link to="/"><h1 className="text-xl font-bold">FACE <span className="text-brand">AHEAD</span></h1></Link>
+          <Link to="/"><h1 className="text-3xl tracking-wide">FACE <span className="text-brand">AHEAD</span></h1></Link>
           <Link to="/run" className="text-sm text-muted hover:text-ink">Back to Run</Link>
         </div>
       </header>

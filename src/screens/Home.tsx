@@ -17,10 +17,10 @@ export function Home() {
   const hasKeys = keys.length > 0
 
   return (
-    <div className="min-h-screen bg-ink text-ink">
+    <div className="min-h-screen bg-paper text-ink">
       <header className="border-b border-line/30">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-xl font-bold">FACE <span className="text-brand">AHEAD</span></h1>
+          <h1 className="text-3xl tracking-wide">FACE <span className="text-brand">AHEAD</span></h1>
           <nav className="flex gap-2">
             <Button variant="ghost" size="sm" onClick={() => navigate('/settings')}>Settings</Button>
             <Button variant="ghost" size="sm" onClick={() => navigate('/diagnostics')}>Diagnostics</Button>
@@ -30,7 +30,7 @@ export function Home() {
 
       <main className="container mx-auto px-4 py-12 max-w-4xl">
         <section className="text-center mb-12">
-          <h2 className="text-3xl font-bold mb-3">Meet the face you're building</h2>
+          <h2 className="text-5xl md:text-6xl mb-3">Meet the face you're building</h2>
           <p className="text-muted max-w-md mx-auto">
             Upload a selfie, scan your skin, project your age, and try styles — all in the browser with YouCam AI.
           </p>
