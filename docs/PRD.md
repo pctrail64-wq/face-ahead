@@ -1,78 +1,139 @@
-# FACE AHEAD — Product Requirements & Judging-Criteria Map
+# FACE AHEAD — Product Requirements
 
-**Deadline:** Aug 17, 2026 · 11:45 AM EDT · YouCam API Skin AI & Apparel VTO Hackathon
+## Vision
+Meet the face you're building. A private, in-browser skin AI lab: one selfie becomes a skin diagnostic, an ageing projection, and a virtual try-on — all served by the YouCam API with no backend.
 
----
+## 1. Core Promise
+Upload a selfie → scan your skin today → age to 50 → scan again → see the habit impact. No login, no server, no secrets leaving the browser.
 
-## 1. Vision
+## 2. Non-Goals
+- Real-time AR (no WebRTC streaming)
+- Video input (still photos only)
+- Offline mode (requires YouCam API)
+- User accounts (everything is device-local)
 
-**FACE AHEAD is the prevention mirror.** Every beauty app reports the present; FACE AHEAD shows users the face they are building and gives them the evidence-backed habits that change it. It combines the two things the market lacks: a *personal, emotional* look at your future (your own aged face, not a stock photo) and an *honest* skin report (error bars, citations, no fake promises).
+## 3. Architecture
+- **Frontend**: React 18 + TypeScript + Vite + Tailwind CSS
+- **State**: Zustand (single store at `store/app.ts`)
+- **Routing**: React Router HashRouter (GitHub Pages compatible)
+- **Build**: Vite static build → `dist/`
+- **Deploy**: GitHub Actions → GitHub Pages
 
-## 2. Target user
+### API Layer (`src/api/`)
+- `client.ts` — HTTP transport, rate limiting, diagnostics publishing
+- `keypool.ts` — per-key health states, failover logic
+- `features.ts` — feature registry (verified YouCam paths)
+- `orchestrator.ts` — DAG pipeline runner
 
-- Adults 18–45 who care about skincare but get lost in product noise
-- People who "know they should wear SPF" but don't — the intervention audience
-- Judges who want **Impact**: prevention is the highest-leverage skin story
+### Key Decisions
+1. **Zero-backend**: YouCam serves CORS headers allowing direct browser calls. No proxy or Lambda needed.
+2. **Multi-key pool**: Keys stored in localStorage. Users add 5-10 keys; the pool auto-rotates on failure.
+3. **Diagnostics Bus**: Every raw HTTP request/response is published to a pub/sub bus before error classification. Nothing is lost to a "friendly error" wrapper.
+4. **S3 PUT is mandatory**: The File API returns a presigned URL; you MUST PUT the image bytes, or task calls return 500/404.
+5. **Errors are free**: YouCam only charges units on successful tasks. Retry ladders cost nothing.
+6. **Polling uses the same key**: A running task is tied to the key that created it — never abandon a task or it can expire as InvalidTaskId while still charging.
 
-## 3. Core journey
+## 4. Diagnostics Bus
+Every request, regardless of which layer produced it, is published unfiltered:
+- Method, URL, request body (truncated)
+- HTTP status code
+- Response headers and body (truncated)
+- Duration, key display (masked), network error (if any)
 
-| Step | What happens | Units |
-|---|---|---|
-| Upload | front-facing selfie; EXIF-aware decode; 4 crop candidates @ 1024² | 0 |
-| Age it | YouCam `aging` → 16 frames of YOUR face (12→70) | 2 |
-| Scan today | `skin-analysis` 14 concerns + `skin-tone-analysis` + `fitzpatrick` (parallel, one upload) | 46 |
-| Scan future | `skin-analysis` on the age-50 frame | 16 |
-| Compare | deltas ▲/▼/=, biggest drops, habit ranking vs YOUR drops | 0 |
-| Share/Log | share card; journey saved locally; re-take in 90 days | 0 |
+The UI subscribes via `useStore.diagnostics` and renders live on `/diagnostics`. Max 500 events in memory.
 
-**Journey ≈ 64u.** Demo mode (no key) runs the identical flow with GENERATED data.
+## 5. Key Pool Health Model
 
-## 4. Feature list (v1)
+| State | Meaning | Auto-transition |
+|-------|---------|-----------------|
+| `unverified` | Newly added, never used | → `ready` on first success |
+| `ready` | Available for requests | → `cooling` on 429 |
+| `cooling` | Rate-limited, waiting | → `ready` after cooldown |
+| `exhausted` | Out of units (1,000/key) | No auto-transition |
+| `invalid` | Bad key or missing scope | No auto-transition |
 
-1. Age slider 12→70 on the real aged face (drag + badge)
-2. Today → Future 14-metric comparison with trend chips
-3. Verify button — re-scan for a ± error bar (honesty)
-4. Scan-at-age button — re-scan report at any slider age (16u)
-5. Top-3 habit cards with citations + confidence labels
-6. Share card modal (Web Share / clipboard)
-7. Journey log (localStorage) + "re-take in 90 days" loop
-8. Pipeline trace UI during scanning (orchestration visibility)
-9. Dark/light mode, mobile-first glass UI
-10. Demo mode with explicit GENERATED labels
+### Failover Rules
+- **401 / InvalidApiKey / InvalidAccessToken** → mark `invalid`, try next key
+- **CreditInsufficiency** → mark `exhausted`, try next key
+- **429** → mark `cooling` (45s default), try next key
+- **5xx** → retry same key with exponential backoff
+- **4xx with error_code** → surface immediately, do NOT rotate keys
 
-## 5. Judging-criteria map (how this product satisfies it 100%)
+## 6. Pipeline (DAG Runner)
 
-### Technological Implementation
-- ✅ 4 YouCam Skin/Fashion APIs: aging, skin-analysis (×2 faces), skin-tone-analysis, fitzpatrick-scale-analyzer
-- ✅ Non-trivial orchestration: 6-stage deterministic pipeline, parallel task lanes sharing one upload, crop-candidate fallback, fail-closed schema gates, live pipeline trace in the UI
-- ✅ Clear consumer value: prevention tool with a shareable, actionable output
-- ✅ Genuine effort: 31 unit tests, live-API E2E, documented API contract, honest error handling
+A Pipeline is a directed acyclic graph of Steps. The runner:
+1. Uploads each source image ONCE (dedup by slot)
+2. Runs independent steps concurrently (bounded to 3)
+3. Chains dependent steps via `dst_id` (no re-upload, no re-charge)
+4. Streams per-step status to the UI
+5. Never lets one failed step kill the whole run
 
-### Design
-- ✅ Complete product: landing → journey → report → habits → share → progress log (not a PoC)
-- ✅ Coherent Apple-style glass design system, dark/light, mobile-first, consistent copy voice
-- ✅ Product loop: share + re-take-in-90-days drives return use
+### Framing Recovery
+YouCam's most common failure is `error_face_position_too_small` — the face is a small part of a phone photo. The runner auto-crop ladder: full → 1.6x → 2.2x → 3.0x zoom, retrying each framing error. Verified live.
 
-### Potential Impact
-- ✅ Credible, specific problem: photoaging is ~80% UV-driven (Flament et al. 2013) — a preventable, measurable problem
-- ✅ Real audience: anyone building long-term skin health
-- ✅ Demonstrated mechanism: the future-self intervention is validated behavioral research (Hershfield et al.; NYU sun-damage studies) — showing people their aged self changes behavior
-- ✅ Demonstrated in-app: user sees their own aged face + their own deltas + 3 specific moves
+### Pre-built Pipelines
+| Pipeline | Steps | Cost |
+|----------|-------|------|
+| timeMachine | scan → age → forecast → tone | ~9u |
+| styleMatch | tone → fitz → try-on | ~8u |
+| deepScan | enhance → scan → face-analysis | ~25u |
+| glowUp | hairstyle → teeth → portrait | ~12u |
 
-### Quality of the Idea
-- ✅ Creative, non-obvious: the aging endpoint is almost unused in the competition; combining **personal aged face + honest skin report + evidence-based habit plan** exists nowhere in the 122-project gallery
-- ✅ Genuine problem-space understanding: the honesty contract, error bars, citations, and "AI projection, not medical prediction" labeling show we understand both the tech and its limits
+## 7. Screens
 
-## 6. Honesty contract (non-negotiables)
+| Route | Purpose |
+|-------|---------|
+| `/` | Home — hero flows, feature gallery, key status |
+| `/run` | Capture/upload, pipeline runner, live progress |
+| `/results` | Scan results, ageing timeline, comparison |
+| `/history` | Saved journeys, revisit, delete |
+| `/settings` | Key pool management, theme toggle |
+| `/diagnostics` | Raw HTTP log from the Diagnostics Bus |
+| `/mask-editor` | Paint a mask for object removal |
 
-1. Aged images always labeled "AI projection" — never presented as measured fact
-2. Demo data always labeled GENERATED
-3. Every habit card carries a citation + confidence level (strong/moderate)
-4. No medical claims — prevention framing only, "correlational evidence" where applicable
-5. Errors are shown as actionable messages, never raw API JSON
+## 8. Error Taxonomy
 
-## 7. Out of scope (v1)
+| YouCam Code | User Message | Pool Action |
+|-------------|-------------|-------------|
+| `CreditInsufficiency` | Key out of units | mark exhausted |
+| `InvalidApiKey` | Bad key | mark invalid |
+| `InvalidAccessToken` | No task scope | mark invalid (auth-only) |
+| `error_src_face_too_small` | Move closer | auto-crop + retry |
+| `error_face_position_too_small` | Fill the frame more | auto-crop + retry |
+| `error_face_position_invalid` | Face not centered | recrop + retry |
+| `error_face_not_forward_facing` | Look straight | retry prompt |
+| `error_face_angle_upward` | Chin down | retry prompt |
+| `error_face_angle_downward` | Chin up | retry prompt |
+| `exceed_max_filesize` | Image too large | client-side resize |
+| `error_no_face_detected` | No face found | retry prompt |
+| `error_multiple_faces` | Multiple faces | retry prompt |
+| `error_nsfw_content_detected` | Content filtered | retry prompt |
+| `429` | Rate limited | mark cooling |
+| `5xx` | Server error | retry w/ backoff |
 
-- Realtime video aging, gender swap, hairstyle aging
-- Accounts/cloud sync (localStorage only)
-- Product purchase links (v2: connect habits → products)
+## 9. Data Persistence
+
+| Store | Key | Content |
+|-------|-----|---------|
+| Key pool | `face-ahead-keys-v1` | Array of PoolKey objects |
+| Journeys | `face-ahead-journeys-v1` | Array of JourneyEntry objects |
+| Current session | sessionStorage | In-progress pipeline images |
+
+Keys and journeys are device-scoped. Clearing localStorage wipes everything.
+
+## 10. Testing
+
+Tests use Node's built-in `node:test` runner against `test/*.test.mjs`.
+- `keypool.test.mjs` — key states, classification, failover
+- `orchestrator.test.mjs` — pipeline construction, cost calculation
+- `failover.test.mjs` — rotation behavior, cooldown recovery
+- `logic.test.mjs` — skin parsing, URL extraction, concern weights
+
+Run with: `npm test`
+
+## 11. Privacy
+
+- API keys never leave the browser (sent only to YouCam in Authorization headers)
+- No analytics, no tracking pixels
+- No third-party scripts
+- All processing happens server-side at YouCam; the browser is the only client
