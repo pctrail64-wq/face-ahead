@@ -210,7 +210,14 @@ export async function runPipeline(pipeline: Pipeline, ctx: RunContext): Promise<
       if (s.refSlot) {
         const ref = uploads[s.refSlot]
         if (!ref) throw new YCError('Missing reference image.', 'no_ref')
-        body.ref_file_id = ref.fileId
+        if (feature.id === 'face-swap') {
+          // face-swap contract: ref_file_ids (plural) + face_mapping.
+          // A singular ref_file_id is rejected with InvalidParameters.
+          body.ref_file_ids = [ref.fileId]
+          body.face_mapping = [{ src_face_index: 0, ref_file_id: ref.fileId, ref_face_index: 0 }]
+        } else {
+          body.ref_file_id = ref.fileId
+        }
       }
 
       // grayscale mask (generative-fill). Docs: white = remove, black = keep,

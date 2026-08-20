@@ -4,6 +4,7 @@ import { useStore } from '../store/app'
 import { PIPELINES, singleFeaturePipeline, runPipeline, type Pipeline, type StepResult } from '../api/orchestrator'
 import { byId, type Feature } from '../api/features'
 import { KeyPool } from '../api/keypool'
+import { listTemplates, type Template } from '../api/client'
 import { Button, Badge, Card, Spinner, Progress, Modal, Thumb, cx } from '../components/ui'
 import { parseSkinScan } from '../lib/skin'
 
@@ -27,6 +28,14 @@ export function Run() {
   const [results, setResultsLocal] = useState<Record<string, StepResult>>({})
   const [showMaskEditor, setShowMaskEditor] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [templates, setTemplates] = useState<Template[]>([])
+  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null)
+  const [templatesLoading, setTemplatesLoading] = useState(false)
+  const [params, setParams] = useState<Record<string, any>>({})
+
+  const hasKeys = keys.length > 0
+  const canRun = file && (hasKeys || true) // demo mode allowed without keys
+  const selectedFeature = featureParam ? byId(featureParam) : null
 
   useEffect(() => {
     return () => {
@@ -34,9 +43,32 @@ export function Run() {
     }
   }, [previewUrl])
 
-  const hasKeys = keys.length > 0
-  const canRun = file && (hasKeys || true) // demo mode allowed without keys
-  const selectedFeature = featureParam ? byId(featureParam) : null
+  // Fetch style templates for template-based features (hairstyle, beard,
+  // avatar, studio, headshot, AI art). Previously these were never loaded,
+  // so every needsTemplate feature failed with "Pick a style first."
+  useEffect(() => {
+    if (!selectedFeature?.needsTemplate || !hasKeys) {
+      setTemplates([])
+      setSelectedTemplate(null)
+      return
+    }
+    let cancelled = false
+    setTemplatesLoading(true)
+    const pool = new KeyPool(keys)
+    listTemplates(selectedFeature.path, { pool, onPoolChange: () => {} }, 24)
+      .then((res) => {
+        if (cancelled) return
+        setTemplates(res.items)
+        if (res.items[0]) setSelectedTemplate(res.items[0].id)
+      })
+      .catch(() => {
+        if (!cancelled) setTemplates([])
+      })
+      .finally(() => {
+        if (!cancelled) setTemplatesLoading(false)
+      })
+    return () => { cancelled = true }
+  }, [selectedFeature?.id, hasKeys, keys])
 
   const onSelectFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]
@@ -57,7 +89,7 @@ export function Run() {
 
   const buildPipeline = () => {
     if (selectedFeature) {
-      return singleFeaturePipeline(selectedFeature.id)
+      return singleFeaturePipeline(selectedFeature.id, params)
     }
     // default hero flow
     return PIPELINES.timeMachine
@@ -79,6 +111,11 @@ export function Run() {
     if (maskFile) images.mask = maskFile
     setImages(images)
 
+    const templatesMap: Record<string, string> = {}
+    if (selectedFeature?.needsTemplate && selectedTemplate) {
+      templatesMap[selectedFeature.id] = selectedTemplate
+    }
+
     setResultsLocal((p) => Object.fromEntries(pipe.steps.map((s) => [s.id, {
       id: s.id, featureId: s.featureId, label: s.label || byId(s.featureId)?.name || s.featureId,
       state: 'idle' as const, cost: byId(s.featureId)?.cost ?? 1,
@@ -90,6 +127,7 @@ export function Run() {
         images,
         signal: AbortSignal.timeout(300_000),
         concurrency: 3,
+        templates: templatesMap,
         onUpdate: (r) => setResultsLocal(r),
         onCharge: (keyId, units) => {
           const pool = apiCtx.pool
@@ -128,7 +166,7 @@ export function Run() {
     } finally {
       setRunning(false)
     }
-  }, [file, keys, refFile, maskFile, selectedFeature])
+  }, [file, keys, refFile, maskFile, selectedFeature, selectedTemplate, params])
 
   const handleDemo = () => {
     setRunning(true)
@@ -207,6 +245,81 @@ export function Run() {
                 <input type="file" accept="image/*" onChange={onSelectMask} className="w-full text-sm mt-2" />
               </div>
             )}
+
+            {selectedFeature?.needsTemplate && (
+              <div>
+                <label className="block text-sm font-medium mb-1">Pick a style</label>
+                {templatesLoading && <p className="text-sm text-muted">Loading styles…</p>}
+                {!templatesLoading && templates.length === 0 && (
+                  <p className="text-sm text-muted">No styles found. Add a working key in Settings, then retry.</p>
+                )}
+                {!templatesLoading && templates.length > 0 && (
+                  <div className="grid grid-cols-5 sm:grid-cols-6 gap-2 max-h-56 overflow-y-auto pr-1">
+                    {templates.map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setSelectedTemplate(t.id)}
+                        className={cx(
+                          'rounded-[6px] border p-1 text-center transition',
+                          selectedTemplate === t.id ? 'border-brand ring-1 ring-brand' : 'border-line/30 hover:border-line',
+                        )}
+                      >
+                        {t.thumbnail ? (
+                          <img src={t.thumbnail} alt={t.name || t.id} loading="lazy" className="w-full aspect-square object-cover rounded-[4px] bg-panel" />
+                        ) : (
+                          <div className="w-full aspect-square rounded-[4px] bg-panel" />
+                        )}
+                        <span className="text-[10px] text-muted truncate block mt-1">{t.name || t.id}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {selectedFeature?.params?.length ? (
+              <div className="space-y-3">
+                {selectedFeature.params.map((p) => {
+                  if (p.type === 'select') {
+                    return (
+                      <div key={p.key}>
+                        <label className="block text-sm font-medium mb-1">{p.label}</label>
+                        <select
+                          className="w-full text-sm bg-panel border border-line/30 rounded-[6px] p-2"
+                          value={String(params[p.key] ?? p.default ?? '')}
+                          onChange={(e) => {
+                            const opt = p.options?.find((o) => String(o.value) === e.target.value)
+                            setParams((prev) => ({
+                              ...prev,
+                              [p.key]: opt && typeof opt.value === 'number' ? Number(e.target.value) : e.target.value,
+                            }))
+                          }}
+                        >
+                          {p.options?.map((o) => (
+                            <option key={String(o.value)} value={String(o.value)}>{o.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )
+                  }
+                  if (p.type === 'text') {
+                    return (
+                      <div key={p.key}>
+                        <label className="block text-sm font-medium mb-1">{p.label}</label>
+                        <input
+                          type="text"
+                          className="w-full text-sm bg-panel border border-line/30 rounded-[6px] p-2"
+                          value={String(params[p.key] ?? p.default ?? '')}
+                          onChange={(e) => setParams((prev) => ({ ...prev, [p.key]: e.target.value }))}
+                        />
+                      </div>
+                    )
+                  }
+                  return null
+                })}
+              </div>
+            ) : null}
 
             {!selectedFeature && (
               <div className="text-xs text-muted">

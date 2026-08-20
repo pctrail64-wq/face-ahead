@@ -255,6 +255,7 @@ export const FEATURES: Feature[] = [
     icon: 'star',
     cost: 4,
     needsTemplate: true,
+    fixed: { output_count: 1 },
   },
   {
     id: 'studio',
@@ -266,6 +267,7 @@ export const FEATURES: Feature[] = [
     icon: 'frame',
     cost: 4,
     needsTemplate: true,
+    fixed: { output_count: 1 },
   },
   {
     id: 'headshot',
@@ -277,6 +279,7 @@ export const FEATURES: Feature[] = [
     icon: 'badge',
     cost: 4,
     needsTemplate: true,
+    fixed: { output_count: 1 },
   },
   {
     id: 'image-generator',
@@ -289,7 +292,7 @@ export const FEATURES: Feature[] = [
     cost: 3,
     needsTemplate: true,
     params: [
-      { key: 'prompt', label: 'Describe the image', type: 'text', default: '' },
+      { key: 'prompt', label: 'Describe the image', type: 'text', default: 'a serene mountain lake at sunset, cinematic lighting' },
       { key: 'negative_prompt', label: 'Avoid (optional)', type: 'text', default: '' },
     ],
   },
