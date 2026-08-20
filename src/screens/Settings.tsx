@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import { useStore } from '../store/app'
 import { Button, Input, Badge, Card, cx, formatUnits } from '../components/ui'
 import { UNITS_PER_KEY } from '../api/keypool'
+import { verifyKey } from '../api/client'
 import type { PoolKey, KeyState } from '../api/keypool'
 
 const STATE_LABEL: Record<KeyState, string> = {
@@ -16,19 +17,40 @@ const STATE_LABEL: Record<KeyState, string> = {
 export function Settings() {
   const navigate = useNavigate()
   const {
-    keys, addKey, removeKey, resetKey, updateKeyLabel,
+    keys, addKey, removeKey, resetKey, updateKeyLabel, setKeyState,
     remainingUnits, totalUnits,
   } = useStore()
 
   const [newKey, setNewKey] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editLabel, setEditLabel] = useState('')
+  const [notice, setNotice] = useState<{ kind: 'ok' | 'warn' | 'bad'; text: string } | null>(null)
+  const [testingId, setTestingId] = useState<string | null>(null)
 
   const handleAdd = () => {
-    const k = addKey(newKey.trim())
+    const v = newKey.trim()
+    if (!v) return
+    const k = addKey(v)
     if (k) {
       setNewKey('')
+      setNotice({ kind: 'ok', text: `Added "${k.label}". It will be tested on first use — or tap Test to verify now.` })
+    } else {
+      setNotice({ kind: 'warn', text: 'That key is already in the pool (or is empty).' })
     }
+  }
+
+  const handleTest = async (k: PoolKey) => {
+    setTestingId(k.id)
+    setNotice(null)
+    const res = await verifyKey(k.value)
+    if (res.ok) {
+      setKeyState(k.id, 'ready', { verified: true, lastError: undefined })
+      setNotice({ kind: 'ok', text: `Key "${k.label}" is valid ✅` })
+    } else {
+      setKeyState(k.id, res.state, { lastError: res.reason })
+      setNotice({ kind: 'bad', text: `Key "${k.label}" failed: ${res.reason}` })
+    }
+    setTestingId(null)
   }
 
   const handleEdit = (k: PoolKey) => {
@@ -81,6 +103,14 @@ export function Settings() {
               />
               <Button onClick={handleAdd} disabled={!newKey.trim()}>Add</Button>
             </div>
+            {notice && (
+              <p className={cx(
+                'text-sm mt-3',
+                notice.kind === 'ok' ? 'text-good' : notice.kind === 'warn' ? 'text-warn' : 'text-bad',
+              )}>
+                {notice.text}
+              </p>
+            )}
           </Card>
 
           <Card className="mb-4 p-4">
@@ -107,6 +137,14 @@ export function Settings() {
                       <span className="text-xs text-muted">{k.used}/{UNITS_PER_KEY}u</span>
                     </div>
                     <div className="flex gap-1">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleTest(k)}
+                        disabled={testingId === k.id}
+                      >
+                        {testingId === k.id ? 'Testing…' : 'Test'}
+                      </Button>
                       <Button size="sm" variant="ghost" onClick={() => resetKey(k.id)}>Reset</Button>
                       <Button size="sm" variant="danger" onClick={() => removeKey(k.id)}>Remove</Button>
                     </div>

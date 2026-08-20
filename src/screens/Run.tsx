@@ -335,7 +335,7 @@ export function Run() {
             <Badge color="amber">No API keys — using demo mode</Badge>
           )}
           {hasKeys && (
-            <Badge color="green">{keys.filter(k => k.state === 'ready').length} key{keys.filter(k => k.state === 'ready').length > 1 ? 's' : ''} ready</Badge>
+            <Badge color="green">{keys.filter(k => k.state === 'ready' || k.state === 'unverified').length} key{keys.filter(k => k.state === 'ready' || k.state === 'unverified').length > 1 ? 's' : ''} ready</Badge>
           )}
         </div>
 

@@ -57,6 +57,7 @@ export interface AppState {
   resetKey: (id: string) => void
   updateKeyLabel: (id: string, label: string) => void
   setKeys: (keys: PoolKey[]) => void
+  setKeyState: (id: string, state: KeyState, extra?: Partial<PoolKey>) => void
 
   setImages: (images: { primary?: Blob | null; reference?: Blob | null; mask?: Blob | null }) => void
   setResults: (results: Record<string, StepResult> | null) => void
@@ -188,6 +189,11 @@ export const useStore = create<AppState>()(
           saveKeys(keys)
         },
         setKeys: (keys) => {
+          set({ keys })
+          saveKeys(keys)
+        },
+        setKeyState: (id, state, extra = {}) => {
+          const keys = get().keys.map((k) => (k.id === id ? { ...k, ...extra, state } : k))
           set({ keys })
           saveKeys(keys)
         },

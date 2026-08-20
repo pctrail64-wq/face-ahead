@@ -21,7 +21,9 @@ class KeyPool {
   available() {
     const now = Date.now()
     return this.keys.filter(k =>
-      k.state === 'ready' || (k.state === 'cooling' && (k.cooldownUntil ?? 0) <= now))
+      k.state === 'ready' ||
+      k.state === 'unverified' ||
+      (k.state === 'cooling' && (k.cooldownUntil ?? 0) <= now))
   }
   next() {
     for (const k of this.keys) {
@@ -29,7 +31,7 @@ class KeyPool {
         k.state = 'ready'; k.cooldownUntil = undefined
       }
     }
-    const pool = this.keys.filter(k => k.state === 'ready')
+    const pool = this.keys.filter(k => k.state === 'ready' || k.state === 'unverified')
     if (!pool.length) return null
     let best = pool[0]
     for (const k of pool) if (k.used < best.used) best = k
@@ -202,6 +204,21 @@ describe('keypool', () => {
       pool.markInvalid(pool.keys[1].id, 'bad')
       const k = pool.next()
       assert.equal(k?.id, pool.keys[2].id)
+    })
+
+    it('next() returns unverified keys (so they can be verified on first use)', () => {
+      // Regression: unverified keys used to be skipped, which meant a fresh
+      // key could never be promoted to 'ready' — a chicken-and-egg deadlock
+      // that made every tool fail with "No API key added yet".
+      pool.keys.forEach(k => { k.state = 'unverified' })
+      const k = pool.next()
+      assert.ok(k)
+      assert.equal(k.state, 'unverified')
+    })
+
+    it('available() includes unverified keys', () => {
+      pool.keys.forEach(k => { k.state = 'unverified' })
+      assert.equal(pool.available().length, pool.keys.length)
     })
 
     it('rotates keys after exhaustion (failover)', () => {

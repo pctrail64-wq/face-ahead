@@ -64,14 +64,21 @@ export class KeyPool {
     return this.keys.filter(
       (k) =>
         k.state === 'ready' ||
+        k.state === 'unverified' ||
         (k.state === 'cooling' && (k.cooldownUntil ?? 0) <= now),
     )
   }
 
   /**
-   * Next key to use. Least-used among ready keys so usage spreads evenly
+   * Next key to use. Least-used among usable keys so usage spreads evenly
    * instead of draining key 1 before touching key 2 — this also keeps each
    * key under the per-token rate limit (~4 QPS per key).
+   *
+   * IMPORTANT: 'unverified' keys are usable. A fresh key (or the default
+   * key on first run) starts as 'unverified', and the ONLY way it becomes
+   * 'ready' is after a successful request. Blocking unverified keys here
+   * made it impossible to ever verify one — next() would return null and
+   * every tool failed with "No API key added yet".
    */
   next(): PoolKey | null {
     const now = Date.now()
@@ -82,7 +89,9 @@ export class KeyPool {
         k.cooldownUntil = undefined
       }
     }
-    const pool = this.keys.filter((k) => k.state === 'ready')
+    const pool = this.keys.filter(
+      (k) => k.state === 'ready' || k.state === 'unverified',
+    )
     if (!pool.length) return null
     let best = pool[0]
     for (const k of pool) if (k.used < best.used) best = k

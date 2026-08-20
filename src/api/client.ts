@@ -16,6 +16,46 @@ import { diagnosticsBus, truncateBody } from '../lib/diagnostics'
 
 export const API_HOST = 'https://yce-api-01.makeupar.com'
 
+/**
+ * Lightweight, no-cost key check: registers a dummy file metadata record.
+ * The File API returns a presigned URL without charging units or requiring
+ * the actual S3 PUT, so this is a safe way to confirm a key is valid.
+ */
+export async function verifyKey(key: string): Promise<{
+  ok: boolean
+  state: 'ready' | 'invalid' | 'exhausted'
+  reason?: string
+}> {
+  let res: Response
+  try {
+    res = await fetch(`${API_HOST}/s2s/v2.0/file`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${key}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        files: [{ content_type: 'image/jpeg', file_name: 'verify.jpg', file_size: 1000 }],
+      }),
+    })
+  } catch (e: any) {
+    return { ok: false, state: 'invalid', reason: e?.message || 'Network error' }
+  }
+  const text = await res.text()
+  let json: any = {}
+  try { json = JSON.parse(text) } catch { /* non-JSON */ }
+  if (res.ok) return { ok: true, state: 'ready' }
+
+  const code = json?.error_code || json?.code
+  if (res.status === 401 || code === 'InvalidApiKey' || code === 'InvalidAccessToken') {
+    return { ok: false, state: 'invalid', reason: json?.error || 'Invalid API key' }
+  }
+  if (code === 'CreditInsufficiency') {
+    return { ok: false, state: 'exhausted', reason: json?.error || 'Out of units' }
+  }
+  return { ok: false, state: 'invalid', reason: json?.error || `HTTP ${res.status}` }
+}
+
 export function apiBase(): string {
   return API_HOST
 }
@@ -262,7 +302,7 @@ export async function request<T = any>(
       ctx.pool.markRateLimited(key.id)
       ctx.onPoolChange?.()
       lastErr = new YCError('Rate limited.', 'rate_limit', 429)
-      if (ctx.pool.keys.filter((k) => k.state === 'ready').length === 0) {
+      if (ctx.pool.keys.filter((k) => k.state === 'ready' || k.state === 'unverified').length === 0) {
         await sleep(Math.min(2 ** attempt * 1500, 15_000))
       }
       attempt++
