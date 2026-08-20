@@ -18,9 +18,9 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+        env:
+          VITE_BASE: /face-ahead/
       - uses: actions/configure-pages@v5
-        with:
-          base_url: '/'
       - uses: actions/upload-pages-artifact@v3
         with:
           path: ./dist
